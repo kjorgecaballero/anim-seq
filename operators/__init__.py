@@ -1,9 +1,9 @@
 from . import import_sequence
-# from . import export_sequence  # For future use
+from . import export_sequence
 
 modules = (
     import_sequence,
-    # export_sequence,
+    export_sequence,
 )
 
 def register():
