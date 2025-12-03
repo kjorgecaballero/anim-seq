@@ -20,3 +20,9 @@ Thumbs.db
 /temp/
 debug/
 *.tmp
+
+# Addon updater files
+*_updater_status.json
+*.update_backup
+/addon_updater/
+/addon_updater_ops/
