@@ -26,3 +26,5 @@ debug/
 *.update_backup
 /addon_updater/
 /addon_updater_ops/
+anim-seq-io_updater
+
