@@ -4,7 +4,7 @@ import bpy
 def menu_func_import(self, context):
     self.layout.operator(
         "import_scene.meshseq", 
-        text="Mesh Sequence As Shapekey (.fbx, .obj)"
+        text="Mesh Sequence (.fbx, .obj)"
     )
 
 
