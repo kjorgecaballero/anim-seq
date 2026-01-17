@@ -70,6 +70,13 @@ class ANIM_SEQ_OT_export_sequence(bpy.types.Operator, ExportHelper):
         default=True,
     )
 
+    # Vertex colors option (only for OBJ format)
+    export_vertex_colors: BoolProperty(
+        name="Vertex Colors",
+        description="Export vertex colors in OBJ files (Blender 3.3+)",
+        default=True,
+    )
+
     def invoke(self, context, event):
         # Set default frame range from scene
         self.frame_start = context.scene.frame_start
@@ -174,6 +181,7 @@ class ANIM_SEQ_OT_export_sequence(bpy.types.Operator, ExportHelper):
                         bpy.ops.wm.obj_export(
                             filepath=filename,
                             export_selected_objects=True,
+                            export_colors=self.export_vertex_colors,  # ¡NUEVO: Exportar colores de vértice!
                         )
                     
                     exported_count += 1
@@ -227,6 +235,10 @@ class ANIM_SEQ_OT_export_sequence(bpy.types.Operator, ExportHelper):
         layout.label(text="Export Options:")
         layout.prop(self, "export_mesh_only")
         layout.prop(self, "apply_modifiers")
+        
+        # Vertex colors option (only for OBJ format)
+        if self.file_format == 'OBJ':
+            layout.prop(self, "export_vertex_colors")
 
 
 def register():
