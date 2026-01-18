@@ -153,6 +153,18 @@ class ANIM_SEQ_OT_export_sequence(bpy.types.Operator, ExportHelper):
                     except:
                         continue
                 
+                # CRÍTICO: Crear una copia temporal del objeto para exportar
+                # Esto evita modificar el objeto original
+                bpy.ops.object.duplicate()
+                temp_obj = context.active_object
+                
+                # Aplicar todas las transformaciones a la copia
+                bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+                
+                # Aplicar modificadores si está habilitado
+                if self.apply_modifiers:
+                    bpy.ops.object.convert(target='MESH')
+                
                 # Create unique filename for FBX/OBJ
                 if len(original_selection) == 1:
                     filename = os.path.join(folder_path, f"{base_name}_{frame:04d}{ext}")
@@ -165,22 +177,38 @@ class ANIM_SEQ_OT_export_sequence(bpy.types.Operator, ExportHelper):
                 # Export based on format
                 try:
                     if self.file_format == 'FBX':
+                        # Exportar FBX SIN animación horneada y SIN transformaciones embebidas
                         bpy.ops.export_scene.fbx(
                             filepath=filename,
                             use_selection=True,
                             apply_unit_scale=True,
                             axis_forward='-Z',
                             axis_up='Y',
-                            use_mesh_modifiers=self.apply_modifiers,
-                            bake_anim=False,
+                            use_mesh_modifiers=False,  # Ya aplicamos modificadores antes
+                            bake_anim=False,  # CRÍTICO: No hornear animación
+                            bake_anim_use_all_bones=False,
+                            bake_anim_use_nla_strips=False,
+                            bake_anim_use_all_actions=False,
+                            bake_anim_force_startend_keying=True,
                             apply_scale_options='FBX_SCALE_NONE',
-                            object_types={'MESH'},  # Only export mesh
-                            add_leaf_bones=False  # Avoid adding empty bones in FBX
+                            object_types={'MESH'},  # Solo exportar malla
+                            mesh_smooth_type='FACE',
+                            add_leaf_bones=False,  # Evitar huesos hoja vacíos
+                            use_armature_deform_only=True,
+                            primary_bone_axis='Y',
+                            secondary_bone_axis='X',
+                            use_space_transform=True,  # Exportar sin transformaciones de espacio
+                            global_scale=1.0,  # Escala 1:1
+                            use_custom_props=False  # No exportar propiedades personalizadas
                         )
                     else:  # OBJ
+                        # Exportar OBJ CON soporte de colores de vértice
                         bpy.ops.wm.obj_export(
                             filepath=filename,
                             export_selected_objects=True,
+                            export_uv=True,
+                            export_normals=True,
+                            export_materials=True,
                             export_colors=self.export_vertex_colors,  # ¡NUEVO: Exportar colores de vértice!
                         )
                     
@@ -188,6 +216,16 @@ class ANIM_SEQ_OT_export_sequence(bpy.types.Operator, ExportHelper):
                     
                 except Exception as e:
                     print(f"Error exporting {obj.name} at frame {frame}: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+                
+                # Eliminar el objeto temporal
+                bpy.data.objects.remove(temp_obj, do_unlink=True)
+                
+                # Restaurar selección original
+                bpy.ops.object.select_all(action='DESELECT')
+                obj.select_set(True)
+                context.view_layer.objects.active = obj
                 
                 # Revert conversion if applied
                 if self.export_mesh_only and original_type != 'MESH':
