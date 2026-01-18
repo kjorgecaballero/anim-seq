@@ -144,7 +144,7 @@ class ANIM_SEQ_OT_import_sequence(bpy.types.Operator, ImportHelper):
             return {"CANCELLED"}
 
         main_obj.location = (0, 0, 0)
-        main_obj.rotation_euler = (1.5708, 0, 0)
+        main_obj.rotation_euler = (0, 0, 0)  
 
         # Move to collection if it exists
         if collection:
@@ -161,7 +161,7 @@ class ANIM_SEQ_OT_import_sequence(bpy.types.Operator, ImportHelper):
                 continue
                 
             current_obj.location = (0, 0, 0)
-            current_obj.rotation_euler = (1.5708, 0, 0)
+            current_obj.rotation_euler = (0, 0, 0) 
 
             context.view_layer.objects.active = main_obj
             bpy.ops.object.join_shapes()
@@ -209,7 +209,7 @@ class ANIM_SEQ_OT_import_sequence(bpy.types.Operator, ImportHelper):
             obj = import_mesh_file(filepath)
             if obj:
                 obj.location = (0, 0, 0)
-                obj.rotation_euler = (1.5708, 0, 0)
+                obj.rotation_euler = (0, 0, 0) 
                 obj.name = f"Frame_{i:04d}"
                 
                 # Move to collection if it exists
