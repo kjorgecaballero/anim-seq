@@ -1,7 +1,7 @@
 bl_info = {
     "name": "anim_sequence_io",
     "author": "Siruka",
-    "version": (1, 0, 0),  
+    "version": (1, 1, 0),  
     "blender": (4, 0, 0),
     "location": "File > Import",
     "description": "Import mesh sequences (FBX/OBJ) as shapekeys with animation",
