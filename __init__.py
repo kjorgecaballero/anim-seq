@@ -1,10 +1,10 @@
 bl_info = {
     "name": "anim_sequence_io",
     "author": "Siruka",
-    "version": (1, 1, 0),  
+    "version": (1, 2, 0),  
     "blender": (4, 0, 0),
-    "location": "File > Import",
-    "description": "Import mesh sequences (FBX/OBJ) as shapekeys with animation",
+    "location": "File > Import/Export",
+    "description": "Import and export OBJ sequences",
     "category": "Import-Export",
 }
 
@@ -16,12 +16,9 @@ from . import addon_updater_ops
 from . import operators, ui, utils
 
 
-# UPDATE PREFERENCES
 class AnimSequenceIO_UpdatePreferences(AddonPreferences):
-    """Addon update preferences"""
     bl_idname = __package__
 
-    # Auto-update settings
     auto_check_update: BoolProperty(
         name="Auto-check for updates",
         description="If enabled, automatically check for updates on startup",
@@ -61,32 +58,17 @@ class AnimSequenceIO_UpdatePreferences(AddonPreferences):
         addon_updater_ops.update_settings_ui(self, context, layout)
 
 
-# REGISTRATION
-
 def register():
-    """Register all modules with updater integration"""
-    
-
     addon_updater_ops.register(bl_info)
-    
-
     bpy.utils.register_class(AnimSequenceIO_UpdatePreferences)
-    
-
     operators.register()
     ui.register()
 
 
 def unregister():
-    """Unregister all modules"""
-  
     ui.unregister()
     operators.unregister()
-    
-
     bpy.utils.unregister_class(AnimSequenceIO_UpdatePreferences)
-    
-
     addon_updater_ops.unregister()
 
 

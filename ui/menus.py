@@ -4,14 +4,14 @@ import bpy
 def menu_func_import(self, context):
     self.layout.operator(
         "import_scene.meshseq", 
-        text="Mesh Sequence (.fbx, .obj)"
+        text="OBJ Sequence (.obj)"
     )
 
 
 def menu_func_export(self, context):
     self.layout.operator(
         "export_scene.meshseq", 
-        text="Mesh Sequence (.fbx, .obj)"
+        text="OBJ Sequence (.obj)"
     )
 
 
