@@ -1,5 +1,6 @@
 import bpy
 import os
+import re 
 from bpy_extras.io_utils import ExportHelper
 from bpy.props import (
     StringProperty,
@@ -77,6 +78,13 @@ class ANIM_SEQ_OT_export_sequence(bpy.types.Operator, ExportHelper):
         default=True,
     )
 
+    # NEW: Rename materials per frame
+    rename_materials: BoolProperty(
+        name="Rename Materials per Frame",
+        description="Append frame number to material names (e.g., texrex_frame001). Removes trailing .xxx",
+        default=False,
+    )
+
     def invoke(self, context, event):
         # Set default frame range from scene
         self.frame_start = context.scene.frame_start
@@ -93,123 +101,112 @@ class ANIM_SEQ_OT_export_sequence(bpy.types.Operator, ExportHelper):
     def execute(self, context):
         # Get the selected folder
         folder_path = self.filepath
-        
-        # If it's a file path, get the directory
         if os.path.isfile(folder_path) or '.' in os.path.basename(folder_path):
             folder_path = os.path.dirname(folder_path)
         
-        # Create directory if it doesn't exist
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         
-        # Determine extension based on format
         ext = ".fbx" if self.file_format == 'FBX' else ".obj"
         
-        # Get base name from filepath or use default
         if self.filepath and self.filepath != "":
-            # Remove extension if present
             base_name = os.path.basename(self.filepath)
             if '.' in base_name:
                 base_name = os.path.splitext(base_name)[0]
         else:
             base_name = "frame"
         
-        # Configure animation frames
         start_frame = self.frame_start
         end_frame = self.frame_end
         
-        # Switch to object mode
         bpy.ops.object.mode_set(mode='OBJECT')
-        
-        # Store original selection
         original_selection = context.selected_objects.copy()
         original_active = context.active_object
         
         exported_count = 0
         
-        # Iterate over all animation frames
         for frame in range(start_frame, end_frame + 1, self.frame_step):
-            # Set current frame
             bpy.context.scene.frame_set(frame)
             
-            # For each selected object
             for obj in original_selection:
-                # Skip non-mesh objects if mesh only is enabled
                 if self.export_mesh_only and obj.type not in {'MESH', 'CURVE', 'SURFACE', 'FONT', 'META'}:
                     continue
                 
-                # Select only this object
                 bpy.ops.object.select_all(action='DESELECT')
                 obj.select_set(True)
                 context.view_layer.objects.active = obj
                 
-                # Store original type for reversion
                 original_type = obj.type
-                
-                # Convert to mesh if needed
                 if self.export_mesh_only and obj.type != 'MESH':
                     try:
                         bpy.ops.object.convert(target='MESH')
                     except:
                         continue
                 
-                # CRÍTICO: Crear una copia temporal del objeto para exportar
-                # Esto evita modificar el objeto original
+                # Duplicate temporary object
                 bpy.ops.object.duplicate()
                 temp_obj = context.active_object
                 
-                # Aplicar todas las transformaciones a la copia
-                bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+                # --- NEW MATERIAL RENAMING LOGIC ---
+                if self.rename_materials and temp_obj.data.materials:
+                    for slot in temp_obj.material_slots:
+                        if slot.material:
+                            original_mat = slot.material
+                            # Remove trailing .xxx (e.g., .002, .003) from the name
+                            base_mat_name = re.sub(r'\.\d+$', '', original_mat.name)
+                            # Create a copy and assign it
+                            new_mat = original_mat.copy()
+                            slot.material = new_mat
+                            # Rename with frame number
+                            new_mat.name = f"{base_mat_name}_frame{frame:04d}"
+                # ------------------------------------
                 
-                # Aplicar modificadores si está habilitado
+                # Apply transforms and modifiers
+                bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
                 if self.apply_modifiers:
                     bpy.ops.object.convert(target='MESH')
                 
-                # Create unique filename for FBX/OBJ
+                # Create unique filename
                 if len(original_selection) == 1:
                     filename = os.path.join(folder_path, f"{base_name}_{frame:04d}{ext}")
                 else:
                     filename = os.path.join(folder_path, f"{base_name}_{obj.name}_{frame:04d}{ext}")
                 
-                # Remove invalid characters from filename
                 filename = filename.replace("*", "").replace("?", "").replace('"', "").replace("<", "").replace(">", "").replace("|", "")
                 
-                # Export based on format
                 try:
                     if self.file_format == 'FBX':
-                        # Exportar FBX SIN animación horneada y SIN transformaciones embebidas
                         bpy.ops.export_scene.fbx(
                             filepath=filename,
                             use_selection=True,
                             apply_unit_scale=True,
                             axis_forward='-Z',
                             axis_up='Y',
-                            use_mesh_modifiers=False,  # Ya aplicamos modificadores antes
-                            bake_anim=False,  # CRÍTICO: No hornear animación
+                            use_mesh_modifiers=False,
+                            bake_anim=False,
                             bake_anim_use_all_bones=False,
                             bake_anim_use_nla_strips=False,
                             bake_anim_use_all_actions=False,
                             bake_anim_force_startend_keying=True,
                             apply_scale_options='FBX_SCALE_NONE',
-                            object_types={'MESH'},  # Solo exportar malla
+                            object_types={'MESH'},
                             mesh_smooth_type='FACE',
-                            add_leaf_bones=False,  # Evitar huesos hoja vacíos
+                            add_leaf_bones=False,
                             use_armature_deform_only=True,
                             primary_bone_axis='Y',
                             secondary_bone_axis='X',
-                            use_space_transform=True,  # Exportar sin transformaciones de espacio
-                            global_scale=1.0,  # Escala 1:1
-                            use_custom_props=False  # No exportar propiedades personalizadas
+                            use_space_transform=True,
+                            global_scale=1.0,
+                            use_custom_props=False
                         )
                     else:  # OBJ
-                        # Exportar OBJ CON soporte de colores de vértice
                         bpy.ops.wm.obj_export(
                             filepath=filename,
                             export_selected_objects=True,
                             export_uv=True,
                             export_normals=True,
                             export_materials=True,
-                            export_colors=self.export_vertex_colors,  # ¡NUEVO: Exportar colores de vértice!
+                            export_colors=self.export_vertex_colors,
                         )
                     
                     exported_count += 1
@@ -219,15 +216,12 @@ class ANIM_SEQ_OT_export_sequence(bpy.types.Operator, ExportHelper):
                     import traceback
                     traceback.print_exc()
                 
-                # Eliminar el objeto temporal
                 bpy.data.objects.remove(temp_obj, do_unlink=True)
                 
-                # Restaurar selección original
                 bpy.ops.object.select_all(action='DESELECT')
                 obj.select_set(True)
                 context.view_layer.objects.active = obj
                 
-                # Revert conversion if applied
                 if self.export_mesh_only and original_type != 'MESH':
                     try:
                         bpy.ops.object.select_all(action='DESELECT')
@@ -240,9 +234,8 @@ class ANIM_SEQ_OT_export_sequence(bpy.types.Operator, ExportHelper):
         # Restore original selection
         bpy.ops.object.select_all(action='DESELECT')
         for obj in original_selection:
-            if obj:  # Check if object still exists
+            if obj:
                 obj.select_set(True)
-        
         if original_active:
             context.view_layer.objects.active = original_active
         
@@ -256,11 +249,9 @@ class ANIM_SEQ_OT_export_sequence(bpy.types.Operator, ExportHelper):
     def draw(self, context):
         layout = self.layout
         
-        # File format
         layout.label(text="File Format:")
         layout.prop(self, "file_format", expand=True)
         
-        # Frame range
         layout.separator()
         layout.label(text="Frame Range:")
         row = layout.row(align=True)
@@ -268,13 +259,12 @@ class ANIM_SEQ_OT_export_sequence(bpy.types.Operator, ExportHelper):
         row.prop(self, "frame_end")
         layout.prop(self, "frame_step")
         
-        # Export options
         layout.separator()
         layout.label(text="Export Options:")
         layout.prop(self, "export_mesh_only")
         layout.prop(self, "apply_modifiers")
+        layout.prop(self, "rename_materials")   # <-- new checkbox
         
-        # Vertex colors option (only for OBJ format)
         if self.file_format == 'OBJ':
             layout.prop(self, "export_vertex_colors")
 
